@@ -1,7 +1,8 @@
 var express = require('express')
 var pg = require('pg')
 var twitter = require('twitter')
-var request = require('request');
+var request = require('request')
+var cors = require('cors')
 
 var databasePort = process.env.CSDBPORT || 5432
 var databaseName = 'starwars'//process.env.CSDBNAME || ''
@@ -15,6 +16,7 @@ var app = express()
 //var client = new pg.Client(conString)
 //client.connect()
 
+app.use(cors())
 app.get('/', function (req, res) {
 	res.send('Hello World!')
 })
@@ -22,6 +24,7 @@ app.get('/', function (req, res) {
 app.listen(3000, function () {
 	console.log('Example app listening on port 3000!')
 })
+
 
 
 
@@ -143,8 +146,3 @@ client.get('search/tweets', params, function(error, tweets, response) {
 	}
 });
 
-
-
-
-
-//
