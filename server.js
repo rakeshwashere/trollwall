@@ -11,9 +11,9 @@ var databaseURL = process.env.CSDBURL
 var barkAccessToken = process.env.BARK_TOKEN
 var app = express()
 
-var conString = `postgres://${databaseUserName}:${databasePassword}@${databaseURL}:${databasePort}/${databaseName}`
-var client = new pg.Client(conString)
-client.connect()
+//var conString = 'postgres://${databaseUserName}:${databasePassword}@${databaseURL}:${databasePort}/${databaseName}'
+//var client = new pg.Client(conString)
+//client.connect()
 
 app.get('/', function (req, res) {
 	res.send('Hello World!')
@@ -29,31 +29,27 @@ app.listen(3000, function () {
 function checkTweets (message, callback) {
 	request({ url: 'https://partner.bark.us/api/v1/messages?token='+barkAccessToken, //URL to hit
 	    // qs: {from: 'blog example', time: +new Date()}, //Query string data
-	    
+	    headers: {
+		    'Content-Type': 'application/json; charset=utf-8'
+		},
 	    method: 'POST',
 	    //Lets post the following key/values as form
 	    json: {
 	    	message: message
     	}
-		}, function(error, response, body){
-			// if (isTimedOut) {
-			// 	return
-			// 	}
-			// }
-			// isReqComplete = true
-			// console(isReqComplete)
-			if(error) {
-				console.log(error);
-			} else {
-				console.log(response.statusCode, body);
-				callback({success: body.success, abusive: body.abusive})
-				// if (body.success) {
-				// 	callback(body.abusive)					
-				// } else {
-				// 	callback('api call failed')
-				// }
+	}, function(error, response, body){
+		if (error) {
+			callback({success: false, message: 'Error in API call'});
+		} 
+		else {
+			if (body.success) {
+				callback({success: body.success, message: body.abusive});
 			}
-		});
+			else {
+				callback({success: body.success, message: 'API call failed'});
+			}
+		}
+	});
 }
 
 
@@ -65,7 +61,7 @@ app.get('/checkTweet', function (req, res) {
 
 	// setTimeout(function() {
 	// 	if (isReqComplete)
-	// 		return
+	// 		retur/n
 	// 	isTimedOut = true
 	// 	console.log('trying to send timeout message')
 	// 	res.send('bark api not responding')
@@ -101,6 +97,35 @@ app.get('/checkTweet', function (req, res) {
 
 })
 
+app.get('/twitter/user/', function(request, res) {
+	var params = {screen_name: request.query.user};
+	client.get('statuses/user_timeline', params, function(error, tweets, response) {
+		if (!error) {
+			timeoutPointer = setTimeout(function() {
+			 	res.send({success : false, message : 'Timeout' });
+			}, 10000);
+			abusiveTweets = 0;
+			totalTweets = tweets.length;
+			processedCount = 0;
+			for (tweetIterator in tweets) {
+				checkTweets(tweets[tweetIterator].text, function(barkResponse) {
+					processedCount ++;
+					if (barkResponse.success && barkResponse.message) {
+						abusiveTweets ++;
+					}
+					
+					if (processedCount == totalTweets) {
+						clearTimeout(timeoutPointer);
+						res.send({ score : 100 * (1 - abusiveTweets / totalTweets) });
+					}
+				});
+			}
+		}
+		else {
+			res.send({success : false, message : 'Error with Twitter API' });
+		}
+	});
+});
 
 
 
