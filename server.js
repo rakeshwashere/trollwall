@@ -1,7 +1,8 @@
 var express = require('express')
 var pg = require('pg')
 var twitter = require('twitter')
-var request = require('request');
+var request = require('request')
+var cors = require('cors')
 
 var databasePort = process.env.CSDBPORT || 5432
 var databaseName = 'starwars'//process.env.CSDBNAME || ''
@@ -15,6 +16,7 @@ var conString = `postgres://${databaseUserName}:${databasePassword}@${databaseUR
 var client = new pg.Client(conString)
 client.connect()
 
+app.use(cors())
 app.get('/', function (req, res) {
 	res.send('Hello World!')
 })
@@ -22,6 +24,7 @@ app.get('/', function (req, res) {
 app.listen(3000, function () {
 	console.log('Example app listening on port 3000!')
 })
+
 
 
 
@@ -45,7 +48,8 @@ function checkTweets (message, callback) {
 			if(error) {
 				console.log(error);
 			} else {
-				console.log(response.statusCode, body);
+				// console.log(response.statusCode, body);
+				console.log('reponse from bark api received')
 				callback({success: body.success, abusive: body.abusive})
 				// if (body.success) {
 				// 	callback(body.abusive)					
