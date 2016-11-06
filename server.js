@@ -5,16 +5,16 @@ var request = require('request')
 var cors = require('cors')
 
 var databasePort = process.env.CSDBPORT || 5432
-var databaseName = 'starwars'//process.env.CSDBNAME || ''
+var databaseName = 'trollwall'//process.env.CSDBNAME || ''
 var databaseUserName = process.env.CSDBUSER 
 var databasePassword = process.env.CSDBPASSWORD 
 var databaseURL = process.env.CSDBURL
 var barkAccessToken = process.env.BARK_TOKEN
 var app = express()
 
-//var conString = 'postgres://${databaseUserName}:${databasePassword}@${databaseURL}:${databasePort}/${databaseName}'
-//var client = new pg.Client(conString)
-//client.connect()
+var conString = `postgres://${databaseUserName}:${databasePassword}@${databaseURL}:${databasePort}/${databaseName}`
+var client = new pg.Client(conString)
+client.connect()
 
 app.use(cors())
 app.get('/', function (req, res) {
@@ -49,6 +49,7 @@ function checkTweets (message, callback) {
 				callback({success: body.success, message: body.abusive});
 			}
 			else {
+				console.log("FAILURE: RETRY");
 				callback({success: body.success, message: 'API call failed'});
 			}
 		}
@@ -100,32 +101,40 @@ app.get('/checkTweet', function (req, res) {
 
 })
 
-app.get('/twitter/user/', function(request, res) {
+app.get('/score/twitter/', function(request, res) {
 	var params = {screen_name: request.query.user};
 	client.get('statuses/user_timeline', params, function(error, tweets, response) {
 		if (!error) {
-			timeoutPointer = setTimeout(function() {
-			 	res.send({success : false, message : 'Timeout' });
-			}, 10000);
+			//timeoutPointer = setTimeout(function() {
+			// 	res.send({success : false, message : 'Timeout' });
+			//}, 10000);
 			abusiveTweets = 0;
 			totalTweets = tweets.length;
 			processedCount = 0;
 			for (tweetIterator in tweets) {
-				checkTweets(tweets[tweetIterator].text, function(barkResponse) {
-					processedCount ++;
-					if (barkResponse.success && barkResponse.message) {
-						abusiveTweets ++;
-					}
+				setTimeout( (function(k) {
+					checkTweets(tweets[k].text, function(barkResponse) {
+						processedCount ++;
+						if (barkResponse.success && barkResponse.message) {
+							abusiveTweets ++;
+						}
 					
-					if (processedCount == totalTweets) {
-						clearTimeout(timeoutPointer);
-						res.send({ score : 100 * (1 - abusiveTweets / totalTweets) });
-					}
-				});
+						if (processedCount == totalTweets) {
+							//clearTimeout(timeoutPointer);
+							try {
+								res.send({ score : 100 * (1 - abusiveTweets / totalTweets), abusiveCount : abusiveTweets });
+							}
+							catch(e) {}
+						}
+					});
+				}), 400 * tweetIterator, tweetIterator);
 			}
 		}
 		else {
-			res.send({success : false, message : 'Error with Twitter API' });
+			try {
+				res.send({success : false, message : 'Error with Twitter API' });
+			}
+			catch(e) {}
 		}
 	});
 });
